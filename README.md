@@ -54,10 +54,10 @@ curl -H "Authorization: Bearer $otpToken" http://localhost:12345/protected
 ```
 
 ### References
-[GoLang server with 2FA](https://www.thepolyglotdeveloper.com/2017/05/add-two-factor-authentication-golang-restful-api)
-[GoLang server with JWT](https://www.thepolyglotdeveloper.com/2017/03/authenticate-a-golang-api-with-json-web-tokens)
-[GoLang with Google Auth App](https://www.socketloop.com/tutorials/golang-verify-token-from-google-authenticator-app)
-[sec51 twofactor](https://github.com/sec51/twofactor)
-[go-guardian](github.com/shaj13/go-guardian)
-[Writing auth app with go-guardian](https://medium.com/@hajsanad/writing-scalable-authentication-in-golang-using-go-guardian-83691219a73a)
+- [GoLang server with 2FA](https://www.thepolyglotdeveloper.com/2017/05/add-two-factor-authentication-golang-restful-api)
+- [GoLang server with JWT](https://www.thepolyglotdeveloper.com/2017/03/authenticate-a-golang-api-with-json-web-tokens)
+- [GoLang with Google Auth App](https://www.socketloop.com/tutorials/golang-verify-token-from-google-authenticator-app)
+- [sec51 twofactor](https://github.com/sec51/twofactor)
+- [go-guardian](github.com/shaj13/go-guardian)
+- [Writing auth app with go-guardian](https://medium.com/@hajsanad/writing-scalable-authentication-in-golang-using-go-guardian-83691219a73a)
 
