@@ -13,3 +13,8 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+#
+static
+*.db
+*.json
+2fa-server

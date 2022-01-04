@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"image"
 	"log"
@@ -39,9 +40,6 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-// jwtSecret is used as a secret to sign JWT token
-var jwtSecret string
-
 // JwtToken represents JWT token generated with /authenticate end-point
 type JwtToken struct {
 	Token string `json:"token"`
@@ -59,7 +57,7 @@ func SignJwt(claims jwt.MapClaims, secret string) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-// VerifyJwr verifies given token with jwtSecret and returns JWT claims
+// VerifyJwr verifies given token with user's secret and returns JWT claims
 func VerifyJwt(token string, secret string) (map[string]interface{}, error) {
 	jwToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -83,7 +81,9 @@ func GetBearerToken(header string) (string, error) {
 		return "", fmt.Errorf("An authorization header is required")
 	}
 	token := strings.Split(header, " ")
-	log.Println("GetBearerToken", token)
+	if Config.Verbose > 0 {
+		log.Println("GetBearerToken", token)
+	}
 	if len(token) != 2 {
 		return "", fmt.Errorf("Malformed bearer token")
 	}
@@ -92,32 +92,56 @@ func GetBearerToken(header string) (string, error) {
 
 // ValidateMiddleware provides authentication of user credentials
 func ValidateMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		bearerToken, err := GetBearerToken(req.Header.Get("authorization"))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		user := query.Get("user") //user="bla"
+		if user == "" {
+			w.Write([]byte("Please provide user name"))
+			return
+		}
+		secret := findUserSecret(user)
+		if secret == "" {
+			err := errors.New("Non existing user, please use /qr end-point to initialize and get QR code")
+			json.NewEncoder(w).Encode(err)
+			return
+		}
+		bearerToken, err := GetBearerToken(r.Header.Get("authorization"))
 		if err != nil {
 			json.NewEncoder(w).Encode(err)
 			return
 		}
-		decodedToken, err := VerifyJwt(bearerToken, jwtSecret)
+		decodedToken, err := VerifyJwt(bearerToken, secret)
 		if err != nil {
 			json.NewEncoder(w).Encode(err)
 			return
 		}
 		if decodedToken["authorized"] == true {
-			context.Set(req, "decoded", decodedToken)
-			next(w, req)
+			context.Set(r, "decoded", decodedToken)
+			next(w, r)
 		} else {
 			json.NewEncoder(w).Encode("2FA is required")
 		}
 	})
 }
 
-func CreateTokenEndpoint(w http.ResponseWriter, req *http.Request) {
+func CreateTokenEndpoint(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	user := query.Get("user") //user="bla"
+	if user == "" {
+		w.Write([]byte("Please provide user name"))
+		return
+	}
+	secret := findUserSecret(user)
+	if secret == "" {
+		err := errors.New("Non existing user, please use /qr end-point to initialize and get QR code")
+		json.NewEncoder(w).Encode(err)
+		return
+	}
 	mockUser := make(map[string]interface{})
-	mockUser["username"] = "nraboy"
-	mockUser["password"] = "password"
+	mockUser["username"] = user
+	mockUser["password"] = secret
 	mockUser["authorized"] = false
-	tokenString, err := SignJwt(mockUser, jwtSecret)
+	tokenString, err := SignJwt(mockUser, secret)
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
@@ -125,8 +149,8 @@ func CreateTokenEndpoint(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(JwtToken{Token: tokenString})
 }
 
-func ProtectedEndpoint(w http.ResponseWriter, req *http.Request) {
-	decoded := context.Get(req, "decoded")
+func ProtectedEndpoint(w http.ResponseWriter, r *http.Request) {
+	decoded := context.Get(r, "decoded")
 	json.NewEncoder(w).Encode(decoded)
 }
 
@@ -137,16 +161,30 @@ var gpmSecret string
 
 // VerifyOtpEndpoint authorizes user based on provided token
 // and OTP code
-func VerifyOtpEndpoint(w http.ResponseWriter, req *http.Request) {
-	//     secret := "2MXGP5X3FVUEK6W4UB2PPODSP2GKYWUT"
-	secret := gpmSecret
-	bearerToken, err := GetBearerToken(req.Header.Get("authorization"))
-	log.Println("verity otp", bearerToken, "error", err)
+func VerifyOtpEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	query := r.URL.Query()
+	user := query.Get("user") //user="bla"
+	if user == "" {
+		w.Write([]byte("Please provide user name"))
+		return
+	}
+	secret := findUserSecret(user)
+	if secret == "" {
+		err := errors.New("Non existing user, please use /qr end-point to initialize and get QR code")
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+
+	bearerToken, err := GetBearerToken(r.Header.Get("authorization"))
+	if Config.Verbose > 0 {
+		log.Println("verify otp", bearerToken, "error", err)
+	}
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
 	}
-	decodedToken, err := VerifyJwt(bearerToken, jwtSecret)
+	decodedToken, err := VerifyJwt(bearerToken, secret)
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
@@ -156,15 +194,19 @@ func VerifyOtpEndpoint(w http.ResponseWriter, req *http.Request) {
 		WindowSize:  3,
 		HotpCounter: 0,
 	}
-	log.Printf("otpc %+v", otpc)
+	if Config.Verbose > 0 {
+		log.Printf("otpc %+v", otpc)
+	}
 	var otpToken OtpToken
-	err = json.NewDecoder(req.Body).Decode(&otpToken)
+	err = json.NewDecoder(r.Body).Decode(&otpToken)
 	if err != nil {
 		log.Println("error", err)
 		json.NewEncoder(w).Encode(err)
 		return
 	}
-	log.Println("otp token", otpToken)
+	if Config.Verbose > 0 {
+		log.Println("otp token", otpToken)
+	}
 	decodedToken["authorized"], err = otpc.Authenticate(otpToken.Token)
 	if err != nil {
 		log.Println("error", err)
@@ -175,17 +217,12 @@ func VerifyOtpEndpoint(w http.ResponseWriter, req *http.Request) {
 		json.NewEncoder(w).Encode("Invalid one-time password")
 		return
 	}
-	log.Println("otp authorized", otpToken)
-	jwToken, _ := SignJwt(decodedToken, jwtSecret)
+	if Config.Verbose > 0 {
+		log.Println("otp authorized", otpToken)
+	}
+	jwToken, _ := SignJwt(decodedToken, secret)
 	json.NewEncoder(w).Encode(jwToken)
 }
-
-// func GenerateSecretEndpoint(w http.ResponseWriter, req *http.Request) {
-//     random := make([]byte, 10)
-//     rand.Read(random)
-//     secret := base32.StdEncoding.EncodeToString(random)
-//     json.NewEncoder(w).Encode(secret)
-// }
 
 // helper function for random string generation
 func randStr(strSize int, randType string) string {
@@ -230,29 +267,22 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	udir := fmt.Sprintf("static/%s", user)
 	qrImgFile := fmt.Sprintf("%s/QRImage.png", udir)
-	qrSecFile := fmt.Sprintf("%s/secret", udir)
-	generateQR := false
-
 	err := os.MkdirAll(udir, 0755)
 	if err != nil {
-		log.Printf("unable to create directory %s, error %v", udir, err)
+		if Config.Verbose > 0 {
+			log.Printf("unable to create directory %s, error %v", udir, err)
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	// check if QR image and gpm secret is generated for this user
-	if fileExists(qrImgFile) && fileExists(qrSecFile) {
-		log.Println("reading existing", qrImgFile, qrSecFile)
-		// read secret and store it into gpmSecret variable
-		data, err := os.ReadFile(qrSecFile)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+	userSecret := findUserSecret(user)
+	if userSecret == "" {
+		// no user exists in DB
+		if Config.Verbose > 0 {
+			log.Println("generate user secret")
 		}
-		gpmSecret = string(data)
-	} else {
+
 		// generate a random string - preferbly 6 or 8 characters
-		log.Println("generate", qrImgFile, qrSecFile)
 		randomStr := randStr(6, "alphanum")
 
 		// For Google Authenticator purpose
@@ -260,7 +290,14 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 		// https://github.com/google/google-authenticator/wiki/Key-Uri-Format
 		secret := base32.StdEncoding.EncodeToString([]byte(randomStr))
 		gpmSecret = secret
-		generateQR = true
+
+		// store user code/secret to DB
+		addUser(user, gpmSecret)
+	} else {
+		if Config.Verbose > 0 {
+			log.Println("read user secret from DB")
+		}
+		gpmSecret = userSecret
 	}
 
 	// authentication link.
@@ -268,18 +305,13 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 	// https://github.com/google/google-authenticator/wiki/Key-Uri-Format
 	authLink := fmt.Sprintf("otpauth://totp/GPM:%s?secret=%s&issuer=GPM", user, gpmSecret)
 
-	if generateQR {
-		// generate QR Image and QR secret file
-		err := generateQRImage(authLink, qrImgFile)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		err = os.WriteFile(qrSecFile, []byte(gpmSecret), 0644)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	// generate QR image
+	// Remember to clean up the file afterwards
+	//     defer os.Remove(qrImgFile)
+	err = generateQRImage(authLink, qrImgFile)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	// generate page content
@@ -312,21 +344,34 @@ func generateQRImage(authLink, fname string) error {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	var config string
+	flag.StringVar(&config, "config", "", "config file")
+	flag.Parse()
+
+	// read configuration
+	parseConfig(config)
+
+	log.Printf("Server configuration %+v", Config)
+
+	if Config.Verbose > 0 {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+	}
+
+	// setup our DB backend
+	setupDB(Config.DBFile)
+
 	router := mux.NewRouter()
 	fmt.Println("Starting the application...")
-	jwtSecret = "JC7qMMZh4G"
 	router.HandleFunc("/authenticate", CreateTokenEndpoint).Methods("POST")
 	router.HandleFunc("/verify-otp", VerifyOtpEndpoint).Methods("POST")
 	router.HandleFunc("/protected", ValidateMiddleware(ProtectedEndpoint)).Methods("GET")
-	//     router.HandleFunc("/generate-secret", GenerateSecretEndpoint).Methods("GET")
 
 	// this is for displaying the QR code on /qr end point
 	// and static area which holds user's images
 	router.HandleFunc("/qr", QRHandler).Methods("GET")
 	fileServer := http.StripPrefix("/static/", http.FileServer(http.Dir("./static")))
 	router.PathPrefix("/static/{user:[0-9a-zA-Z-]+}/{file:[0-9a-zA-Z-\\.]+}").Handler(fileServer)
-	//     router.PathPrefix("/QRImage.png").Handler(fileServer)
 
-	log.Fatal(http.ListenAndServe(":12345", router))
+	addr := fmt.Sprintf(":%d", Config.Port)
+	log.Fatal(http.ListenAndServe(addr, router))
 }
