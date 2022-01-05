@@ -10,11 +10,11 @@ vet:
 build:
 	go clean; rm -rf pkg 2fa-server*; go build ${flags}
 
-build_all: build build_osx build_amd64 build_power8 build_arm64
+build_all: build build_darwin build_amd64 build_power8 build_arm64
 
-build_osx:
-	go clean; rm -rf pkg 2fa-server_osx; GOOS=darwin go build ${flags}
-	mv 2fa-server 2fa-server_osx
+build_darwin:
+	go clean; rm -rf pkg 2fa-server_darwin; GOOS=darwin go build ${flags}
+	mv 2fa-server 2fa-server_darwin
 
 build_amd64:
 	go clean; rm -rf pkg 2fa-server_amd64; GOOS=linux go build ${flags}
