@@ -30,8 +30,6 @@ jobs:
         make build_power8
         echo "ARM64 build"
         make build_arm64
-        echo "Windows build"
-        make build_windows
 
     - name: Create Release
       id: create_release
@@ -86,17 +84,6 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./2fa-server_arm64
         asset_name: 2fa-server_arm64
-        asset_content_type: application/octet-stream
-
-    - name: Upload windows binary
-      id: upload-2fa-server-windows
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./2fa-server_windows
-        asset_name: 2fa-server_windows
         asset_content_type: application/octet-stream
 
     - name: Get the Ref

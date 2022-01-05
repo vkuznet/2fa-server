@@ -10,7 +10,7 @@ vet:
 build:
 	go clean; rm -rf pkg 2fa-server*; go build ${flags}
 
-build_all: build build_darwin build_amd64 build_power8 build_arm64 build_windows
+build_all: build build_darwin build_amd64 build_power8 build_arm64
 
 build_darwin:
 	go clean; rm -rf pkg 2fa-server_darwin; GOOS=darwin go build ${flags}
@@ -29,7 +29,7 @@ build_arm64:
 	mv 2fa-server 2fa-server_arm64
 
 build_windows:
-	go clean; rm -rf pkg 2fa-server_windows; GOOS=windows go build ${flags}
+	go clean; rm -rf pkg 2fa-server_windows; GOARCH=amd64 GOOS=windows CGO_ENABLED=0 go build ${flags}
 	mv 2fa-server 2fa-server_windows
 
 install:
