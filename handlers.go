@@ -14,14 +14,34 @@ import (
 	"github.com/gorilla/context"
 )
 
+// we embed few html pages directly into server
+// but for advanced usage users should switch to templates
+
+//go:embed "static/top.html"
+var topHTML string
+
+//go:embed "static/bottom.html"
+var bottomHTML string
+
+//go:embed "static/index.html"
+var homePage string
+
+//go:embed "static/signup.html"
+var signPage string
+
 // AuthHandler authenticate user via POST HTTP request
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	user := query.Get("user") //user="bla"
-	if user == "" {
-		w.Write([]byte("Please provide user name"))
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	// parse form parameters
+	var user string
+	if err := r.ParseForm(); err == nil {
+		user = r.FormValue("user")
+	}
+
 	secret := findUserSecret(user)
 	if secret == "" {
 		err := errors.New("Non existing user, please use /qr end-point to initialize and get QR code")
@@ -56,13 +76,23 @@ func ApiHandler(w http.ResponseWriter, r *http.Request) {
 // VerifyHandler authorizes user based on provided token
 // and OTP code
 func VerifyHandler(w http.ResponseWriter, r *http.Request) {
-
-	query := r.URL.Query()
-	user := query.Get("user") //user="bla"
-	if user == "" {
-		w.Write([]byte("Please provide user name"))
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	// this API expect JSON OtpToken payload
+	var otpToken OtpToken
+	err := json.NewDecoder(r.Body).Decode(&otpToken)
+	if err != nil {
+		log.Println("error", err)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+	if Config.Verbose > 0 {
+		log.Println("otp token", otpToken)
+	}
+	user := otpToken.User
 	secret := findUserSecret(user)
 	if secret == "" {
 		err := errors.New("Non existing user, please use /qr end-point to initialize and get QR code")
@@ -91,16 +121,6 @@ func VerifyHandler(w http.ResponseWriter, r *http.Request) {
 	if Config.Verbose > 0 {
 		log.Printf("otpc %+v", otpc)
 	}
-	var otpToken OtpToken
-	err = json.NewDecoder(r.Body).Decode(&otpToken)
-	if err != nil {
-		log.Println("error", err)
-		json.NewEncoder(w).Encode(err)
-		return
-	}
-	if Config.Verbose > 0 {
-		log.Println("otp token", otpToken)
-	}
 	decodedToken["authorized"], err = otpc.Authenticate(otpToken.Token)
 	if err != nil {
 		log.Println("error", err)
@@ -121,20 +141,85 @@ func VerifyHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(jwToken)
 }
 
+// UserHandler handles sign-up HTTP requests
+func UserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// parse form parameters
+	var user, email, password, signup string
+	err := r.ParseForm()
+	if err == nil {
+		user = r.FormValue("user")
+		email = r.FormValue("email")
+		password = r.FormValue("password")
+		signup = r.FormValue("signup")
+	} else {
+		log.Println("unable to parse user form data", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	log.Println("user", user, email)
+
+	// check if we use signup or signin form
+	if signup == "signup" {
+		log.Println("sign up form")
+		// check if user exists, otherwise create new user entry in DB
+		if !userExist(user, password) {
+			addUser(user, password, email, "")
+		}
+	} else {
+		log.Println("sign in form")
+		if !userExist(user, password) {
+			msg := "<div class=\"alert is-error is-50\">Wrong password or user does not exist</div>"
+			w.Write([]byte(topHTML + msg + bottomHTML))
+			return
+		}
+	}
+
+	// redirect request to qrcode end-point
+	if Config.Verbose > 0 {
+		log.Printf("redirect %+v", r)
+	}
+	// to preserve the same HTTP method we should use
+	// 307 StatusTemporaryRedirect code
+	// https://softwareengineering.stackexchange.com/questions/99894/why-doesnt-http-have-post-redirect
+	http.Redirect(w, r, "/qrcode", http.StatusTemporaryRedirect)
+}
+
 // QRHandler represents handler for /qr end-point to present our QR code
 // to the client
 func QRHandler(w http.ResponseWriter, r *http.Request) {
-
-	// this end-points expects that user provide its user name
-	query := r.URL.Query()
-	user := query.Get("user") //user="bla"
-	if user == "" {
-		w.Write([]byte("Please provide user name"))
+	log.Printf("call QRHandler %+v", r)
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	udir := fmt.Sprintf("%s/%s", Config.StaticDir, user)
+
+	// parse form parameters
+	var user string
+	err := r.ParseForm()
+	if err == nil {
+		user = r.FormValue("user")
+	} else {
+		log.Println("unable to parse form data", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// check if our user exists in DB
+	if !userExist(user, "do not check") {
+		msg := fmt.Sprintf("Unknown user %s", user)
+		w.Write([]byte(msg))
+		return
+	}
+
+	// proceed and either create or retrieve QR code for our user
+	udir := fmt.Sprintf("static/%s", user)
 	qrImgFile := fmt.Sprintf("%s/QRImage.png", udir)
-	err := os.MkdirAll(udir, 0755)
+	err = os.MkdirAll(udir, 0755)
 	if err != nil {
 		if Config.Verbose > 0 {
 			log.Printf("unable to create directory %s, error %v", udir, err)
@@ -143,7 +228,6 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userSecret := findUserSecret(user)
-	showQRCode := false
 	if userSecret == "" {
 		// no user exists in DB
 		if Config.Verbose > 0 {
@@ -159,9 +243,8 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 		secret := base32.StdEncoding.EncodeToString([]byte(randomStr))
 		jwtSecret = secret
 
-		// store user code/secret to DB
-		addUser(user, jwtSecret)
-		showQRCode = true
+		// update user secret in DB
+		updateUser(user, jwtSecret)
 	} else {
 		if Config.Verbose > 0 {
 			log.Println("read user secret from DB")
@@ -184,25 +267,14 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// generate page content
-	var content string
-	if showQRCode {
-		content = fmt.Sprintf("<html><body><h1>QR code for: %s</h1><img src='/%s'></body></html>", user, qrImgFile)
-	} else {
-		content = fmt.Sprintf("<html><body>QR code for %s is already generated</body></html>", user)
-	}
-	w.Write([]byte(content))
+	content := fmt.Sprintf("<h3>QR code for: %s</h3><img src='%s'>", user, qrImgFile)
+	w.Write([]byte(topHTML + content + bottomHTML))
 }
-
-//go:embed "static/index.html"
-var homePage string
 
 // HomeHandler handles home page requests
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(homePage))
 }
-
-//go:embed "static/signup.html"
-var signPage string
 
 // SignUpHandler handles sign-up page requests
 func SignUpHandler(w http.ResponseWriter, r *http.Request) {

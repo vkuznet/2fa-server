@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/context"
@@ -11,15 +12,26 @@ import (
 // ValidateMiddleware provides authentication of user credentials
 func ValidateMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		query := r.URL.Query()
-		user := query.Get("user") //user="bla"
-		if user == "" {
-			w.Write([]byte("Please provide user name"))
-			return
+		var user string
+		if r.Method == "GET" {
+			query := r.URL.Query()
+			user = query.Get("user") //user="bla"
+			if user == "" {
+				w.Write([]byte("Please provide user name"))
+			}
+		} else if r.Method == "POST" {
+			var otpToken OtpToken
+			err := json.NewDecoder(r.Body).Decode(&otpToken)
+			if err != nil {
+				log.Println("error", err)
+				json.NewEncoder(w).Encode(err)
+				return
+			}
+			user = otpToken.User
 		}
 		secret := findUserSecret(user)
 		if secret == "" {
-			err := errors.New("Non existing user, please use /qr end-point to initialize and get QR code")
+			err := errors.New("Unable to find user credentials, please obtain proper QR code")
 			json.NewEncoder(w).Encode(err)
 			return
 		}

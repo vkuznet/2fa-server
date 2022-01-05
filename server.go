@@ -37,19 +37,19 @@ func server() {
 
 	router.HandleFunc("/authenticate", AuthHandler).Methods("POST")
 	router.HandleFunc("/verify", VerifyHandler).Methods("POST")
-	router.HandleFunc("/api", ValidateMiddleware(ApiHandler)).Methods("GET")
+	router.HandleFunc("/api", ValidateMiddleware(ApiHandler)).Methods("GET", "POST")
+	router.HandleFunc("/user", UserHandler).Methods("POST")
+	router.HandleFunc("/qrcode", QRHandler)
+	router.HandleFunc("/signup", SignUpHandler).Methods("GET")
+	router.HandleFunc("/", HomeHandler).Methods("GET")
 
 	// this is for displaying the QR code on /qr end point
 	// and static area which holds user's images
-	router.HandleFunc("/qr", QRHandler).Methods("GET")
 	fileServer := http.StripPrefix("/static/", http.FileServer(http.Dir("./static")))
 	router.PathPrefix("/static/{user:[0-9a-zA-Z-]+}/{file:[0-9a-zA-Z-\\.]+}").Handler(fileServer)
 
 	// static css content
 	router.PathPrefix("/css/{file:[0-9a-zA-Z-\\.]+}").Handler(fileServer)
-
-	router.HandleFunc("/signup", SignUpHandler).Methods("GET")
-	router.HandleFunc("/", HomeHandler).Methods("GET")
 
 	addr := fmt.Sprintf(":%d", Config.Port)
 	log.Fatal(http.ListenAndServe(addr, router))

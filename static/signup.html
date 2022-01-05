@@ -21,9 +21,10 @@
             <div class="is-col"></div>
             <div class="is-col">
 
-                <form method="post" action="/authenticate">
+                <form method="post" action="/user">
                     <fieldset>
                         <legend>Sign up form</legend>
+                        <input type="hidden" name="signup" id="signup" value="signup" />
                         <div class="form-item">
                             <label>Email</label>
                             <input type="text" name="email" id="email" class="is-95">

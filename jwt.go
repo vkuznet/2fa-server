@@ -19,6 +19,7 @@ type JwtToken struct {
 // OtpToken represents OTP (One-time Password) token generated after
 // success authentication with Google Authenticator
 type OtpToken struct {
+	User  string `json:"user"`
 	Token string `json:"otp"`
 }
 
