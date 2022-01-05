@@ -14,7 +14,7 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 #
-static
+static/*/*.png
 *.db
 *.json
 2fa-server

@@ -1,0 +1,14 @@
+body {
+    margin:20px;
+    margin-left:20px;
+    margin-right:20px;
+    padding:20px;
+    color:#000;
+    background:#EBEBEB;
+    opacity: 0.5;
+    font-family: 'Trebuchet MS', sans-serif;
+}
+.text-center {
+    text-align: center;
+    align-items: center;
+}
