@@ -272,8 +272,11 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// generate page content
-	content := fmt.Sprintf("<h3>QR code for: %s</h3><img src='%s'>", user, qrImgFile)
-	w.Write([]byte(topHTML + content + bottomHTML))
+	tmplData := make(TmplRecord)
+	tmplData["User"] = user
+	tmplData["ImageFile"] = qrImgFile
+	page := tmplPage("qrcode.tmpl", tmplData)
+	w.Write([]byte(page))
 }
 
 // helper function to parse given template and return HTML page
