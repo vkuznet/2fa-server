@@ -1,6 +1,6 @@
 ## 2fa-server
 
-[![Build Status](https://github.com/vkuznet/2fa-server/actions/workflows/go.yml/badge.svg)](https://github.com/vkuznet/2fa-server/actions/workflows/go.yml)
+[![Build Status](https://github.com/vkuznet/2fa-server/actions/workflows/go.yml/badge.svg)](https://github.com/vkuznet/2fa-server/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/vkuznet/2fa-server)](https://goreportcard.com/report/github.com/vkuznet/2fa-server)
 [![GoDoc](https://godoc.org/github.com/vkuznet/2fa-server?status.svg)](https://godoc.org/github.com/vkuznet/2fa-server)
 
