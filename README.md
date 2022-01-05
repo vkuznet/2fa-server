@@ -1,12 +1,16 @@
-Go based HTTP server with 2FA based on OTP (One-Time Password) manager like
-Google Authenticator, etc.
+Fully functional Go based HTTP server with 2FA based on OTP (One-Time Password)
+manager like Google Authenticator, etc.
 
 The server contains the following end-points:
 - `/authenticate` to authenticate user and return a valid JWT token via HTTP
   POST request
 - `/verify` performs OTP authentication with OTP provider (Google
-  Authenticator) and return a valid OTP token 
-- `/api` provides authorized user access to protected data
+  Authenticator) and return a valid OTP token via HTTP POST request
+- `/qrcode` provides existing users QR code
+- `/user` provides user home page
+- `/api` provides authorized user access to protected data either
+using GET or POST HTTP methods
+And, the server provides sing-in and sign-up HTML pages.
 
 You should install [Google Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_US&gl=US) or similar OTP authenticator
 on your smart phone.
