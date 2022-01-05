@@ -15,6 +15,7 @@ type Configuration struct {
 	StaticDir string `json:"staticdir"` // location of static directory
 	Verbose   int    `json:"verbose"`   // verbosity level
 	DBFile    string `json:"dbfile"`    // dbfile name
+	Templates string `json:"templates"` // server templates
 }
 
 // Config represents global configuration object
@@ -42,6 +43,7 @@ func parseConfig(configFile string) {
 		path = "."
 	}
 	Config.StaticDir = fmt.Sprintf("%s/static", path)
+	Config.Templates = fmt.Sprintf("%s/static/tmpl", path)
 
 	// read config file
 	data, err := os.ReadFile(configFile)

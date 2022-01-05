@@ -20,9 +20,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/dchest/captcha"
 	"github.com/gorilla/mux"
-	// clone of "code.google.com/p/rsc/qr" which no longer available
-	// imaging library
 )
 
 // HomeHandler represents server home page
@@ -45,11 +44,15 @@ func server() {
 
 	// this is for displaying the QR code on /qr end point
 	// and static area which holds user's images
-	fileServer := http.StripPrefix("/static/", http.FileServer(http.Dir("./static")))
+	fileServer := http.StripPrefix("/static/", http.FileServer(http.Dir(Config.StaticDir)))
 	router.PathPrefix("/static/{user:[0-9a-zA-Z-]+}/{file:[0-9a-zA-Z-\\.]+}").Handler(fileServer)
 
 	// static css content
 	router.PathPrefix("/css/{file:[0-9a-zA-Z-\\.]+}").Handler(fileServer)
+
+	// add captcha server
+	captchaServer := captcha.Server(captcha.StdWidth, captcha.StdHeight)
+	router.PathPrefix("/captcha/").Handler(captchaServer)
 
 	addr := fmt.Sprintf(":%d", Config.Port)
 	log.Fatal(http.ListenAndServe(addr, router))

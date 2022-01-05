@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/dchest/captcha v0.0.0-20200903113550-03f5f0333e1f // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/mattn/go-sqlite3 v1.14.10 // indirect

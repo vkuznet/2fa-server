@@ -38,6 +38,13 @@
                             <input type="password" name="password" id="password" class="is-95">
                         </div>
                         <div class="form-item">
+                            <p>Type the numbers you see in the picture below:</p>
+                            <p><img id=image src="/captcha/{{.CaptchaId}}.png" alt="Captcha image"></p>
+                            <a href="#" onclick="reload()">Reload</a>
+                            <input type=hidden name=captchaId value="{{.CaptchaId}}"><br>
+                            <input name=captchaSolution>
+                        </div>
+                        <div class="form-item">
                             <div class="is-row">
                                 <div class="is-col"></div>
                                 <div class="is-col"></div>

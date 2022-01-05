@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/dchest/captcha"
 	"github.com/dgryski/dgoogauth"
 	"github.com/gorilla/context"
 )
@@ -17,17 +18,11 @@ import (
 // we embed few html pages directly into server
 // but for advanced usage users should switch to templates
 
-//go:embed "static/top.html"
+//go:embed "static/tmpl/top.tmpl"
 var topHTML string
 
-//go:embed "static/bottom.html"
+//go:embed "static/tmpl/bottom.tmpl"
 var bottomHTML string
-
-//go:embed "static/index.html"
-var homePage string
-
-//go:embed "static/signup.html"
-var signPage string
 
 // AuthHandler authenticate user via POST HTTP request
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +156,15 @@ func UserHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	log.Println("user", user, email)
+
+	// check if user provide the captcha
+	if !captcha.VerifyString(r.FormValue("captchaId"), r.FormValue("captchaSolution")) {
+		tmplData := make(TmplRecord)
+		tmplData["Message"] = "Wrong captcha match, robots are not allowed"
+		page := tmplPage("error.tmpl", tmplData)
+		w.Write([]byte(page))
+		return
+	}
 
 	// check if we use signup or signin form
 	if signup == "signup" {
@@ -173,8 +176,10 @@ func UserHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Println("sign in form")
 		if !userExist(user, password) {
-			msg := "<div class=\"alert is-error is-50\">Wrong password or user does not exist</div>"
-			w.Write([]byte(topHTML + msg + bottomHTML))
+			tmplData := make(TmplRecord)
+			tmplData["Message"] = "Wrong password or user does not exist"
+			page := tmplPage("error.tmpl", tmplData)
+			w.Write([]byte(page))
 			return
 		}
 	}
@@ -217,7 +222,7 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// proceed and either create or retrieve QR code for our user
-	udir := fmt.Sprintf("static/%s", user)
+	udir := fmt.Sprintf("static/data/%s", user)
 	qrImgFile := fmt.Sprintf("%s/QRImage.png", udir)
 	err = os.MkdirAll(udir, 0755)
 	if err != nil {
@@ -271,12 +276,30 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(topHTML + content + bottomHTML))
 }
 
+// helper function to parse given template and return HTML page
+func tmplPage(tmpl string, tmplData TmplRecord) string {
+	if tmplData == nil {
+		tmplData = make(TmplRecord)
+	}
+	var templates Templates
+	page := templates.Tmpl(Config.Templates, tmpl, tmplData)
+	return topHTML + page + bottomHTML
+}
+
 // HomeHandler handles home page requests
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(homePage))
+	tmplData := make(TmplRecord)
+	captchaStr := captcha.New()
+	tmplData["CaptchaId"] = captchaStr
+	page := tmplPage("index.tmpl", tmplData)
+	w.Write([]byte(page))
 }
 
 // SignUpHandler handles sign-up page requests
 func SignUpHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(signPage))
+	tmplData := make(TmplRecord)
+	captchaStr := captcha.New()
+	tmplData["CaptchaId"] = captchaStr
+	page := tmplPage("signup.tmpl", tmplData)
+	w.Write([]byte(page))
 }

@@ -89,7 +89,25 @@ curl -X POST \
 {"authorized":true,"password":"XXXYYYZZ","username":"UserName"}
 ```
 
+### Code organization
+The code is organized in modules:
+- `config.go` provides confugration structure for our server
+- `db.go` provides DB layer based on [gorm](https://gorm.io/docs/) library
+- `handlers.go`
+- `jwt.go` contains all code related to JWT tokens and its structures used in
+  HTTP server
+- main.go
+- `middleware.go` provides different middleware used by the HTTP server
+- `server.go` provides server codebase
+- `tempaltes.go` provides codebase for loading HTML templates
+- `utils.go` contains varioud utility functions used across the code
+
+All HTML tempaltes are located in `static/tmpl` area, while css in
+`static/css`.
+
 ### References
+I'm greateful to many resources I found online. In particular, this
+work will not be complete without the following:
 - [GoLang server with 2FA](https://www.thepolyglotdeveloper.com/2017/05/add-two-factor-authentication-golang-restful-api)
 - [GoLang server with JWT](https://www.thepolyglotdeveloper.com/2017/03/authenticate-a-golang-api-with-json-web-tokens)
 - [GoLang with Google Auth App](https://www.socketloop.com/tutorials/golang-verify-token-from-google-authenticator-app)

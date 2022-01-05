@@ -1,0 +1,53 @@
+<div>
+    <div class="is-row">
+        <div class="is-col"></div>
+        <div class="is-col is-width-small is-center">
+            <div class="is-center text-center"><h3>2fa-server</h3></div>
+        </div>
+        <div class="is-col"></div>
+    </div>
+    <br />
+    <br />
+
+    <div class="is-row">
+        <div class="is-col"></div>
+        <div class="is-col">
+
+            <form method="post" action="/user">
+                <fieldset>
+                    <legend>Sign up form</legend>
+                    <input type="hidden" name="signup" id="signup" value="signup" />
+                    <div class="form-item">
+                        <label>Email</label>
+                        <input type="text" name="email" id="email" class="is-95">
+                    </div>
+                    <div class="form-item">
+                        <label>User name</label>
+                        <input type="text" name="user" id="user" class="is-95">
+                    </div>
+                    <div class="form-item">
+                        <label>Password</label>
+                        <input type="password" name="password" id="password" class="is-95">
+                    </div>
+                    <div class="form-item">
+                        <p>Type the numbers you see in the picture below:</p>
+                        <p><img id=image src="/captcha/{{.CaptchaId}}.png" alt="Captcha image"></p>
+                        <a href="#" onclick="reload()">Reload</a>
+                        <input type=hidden name=captchaId value="{{.CaptchaId}}"><br>
+                        <input name=captchaSolution>
+                    </div>
+                    <div class="form-item">
+                        <div class="is-row">
+                            <div class="is-col"></div>
+                            <div class="is-col"></div>
+                            <div class="is-col">
+                                <button class="button is-secondary is-small">Submit</button>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+        <div class="is-col"></div>
+    </div>
+</div>
