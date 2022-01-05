@@ -29,7 +29,7 @@ func SignJwt(claims jwt.MapClaims, secret string) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-// VerifyJwr verifies given token with user's secret and returns JWT claims
+// VerifyJwt verifies given token with user's secret and returns JWT claims
 func VerifyJwt(token string, secret string) (map[string]interface{}, error) {
 	jwToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

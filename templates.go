@@ -35,7 +35,7 @@ func parseTmpl(tdir, tmpl string, data interface{}) string {
 	return buf.String()
 }
 
-// ServerTemplates structure
+// Templates structure holds our HTML template
 type Templates struct {
 	html string
 }

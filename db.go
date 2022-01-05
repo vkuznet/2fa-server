@@ -14,6 +14,7 @@ type User struct {
 	Secret   string
 }
 
+// DB provides pointer to our database
 var DB *gorm.DB
 
 func setupDB(fname string) {
