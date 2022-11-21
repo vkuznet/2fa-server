@@ -120,4 +120,5 @@ work will not be complete without the following:
 - [sec51 twofactor](https://github.com/sec51/twofactor)
 - [go-guardian](github.com/shaj13/go-guardian)
 - [Writing auth app with go-guardian](https://medium.com/@hajsanad/writing-scalable-authentication-in-golang-using-go-guardian-83691219a73a)
-
+- [GoLang JWT auth/authz](https://www.bacancytechnology.com/blog/golang-jwt)
+- [Using JWT for auth in GoLang](https://codeburst.io/using-jwt-for-authentication-in-a-golang-application-e0357d579ce2)

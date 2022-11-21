@@ -9,8 +9,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/dchest/captcha"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/dgryski/dgoogauth"
 	"github.com/gorilla/context"
 )
@@ -43,15 +45,21 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(err)
 		return
 	}
-	userData := make(map[string]interface{})
-	userData["username"] = user
-	userData["password"] = secret
-	userData["authorized"] = false
+	// TODO: may be use userData := jwt.MapClaims{}
+	//     userData := make(map[string]interface{})
+	//     userData["username"] = user
+	//     userData["password"] = secret
+	//     userData["authorized"] = false
+	mapClaims := jwt.MapClaims{}
+	mapClaims["username"] = user
+	mapClaims["authorized"] = false
+	mapClaims["exp"] = time.Now().Add(time.Minute * 15).Unix()
 
 	// for verification we can use either user's secret
 	// or server secret
 	// in latter case it should be global and available to all APIs
-	tokenString, err := SignJwt(userData, secret)
+	//     tokenString, err := SignJwt(userData, secret)
+	tokenString, err := SignJwt(mapClaims, secret)
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
@@ -113,9 +121,6 @@ func VerifyHandler(w http.ResponseWriter, r *http.Request) {
 		WindowSize:  3,
 		HotpCounter: 0,
 	}
-	if Config.Verbose > 0 {
-		log.Printf("otpc %+v", otpc)
-	}
 	decodedToken["authorized"], err = otpc.Authenticate(otpToken.Token)
 	if err != nil {
 		log.Println("error", err)
@@ -156,6 +161,12 @@ func UserHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	passwordHash, err := getPasswordHash(password)
+	if err != nil {
+		log.Println("unable to get password hash", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	// check if user provide the captcha
 	if !captcha.VerifyString(r.FormValue("captchaId"), r.FormValue("captchaSolution")) {
@@ -170,12 +181,12 @@ func UserHandler(w http.ResponseWriter, r *http.Request) {
 	if signup == "signup" {
 		log.Println("sign up form")
 		// check if user exists, otherwise create new user entry in DB
-		if !userExist(user, password) {
-			addUser(user, password, email, "")
+		if !userExist(user, passwordHash) {
+			addUser(user, passwordHash, email, "")
 		}
 	} else {
 		log.Println("sign in form")
-		if !userExist(user, password) {
+		if !userExist(user, passwordHash) {
 			tmplData := make(TmplRecord)
 			tmplData["Message"] = "Wrong password or user does not exist"
 			page := tmplPage("error.tmpl", tmplData)
@@ -240,7 +251,7 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// generate a random string - preferbly 6 or 8 characters
-		randomStr := randStr(6, "alphanum")
+		randomStr := randStr(10, "alphanum")
 
 		// For Google Authenticator purpose
 		// for more details see

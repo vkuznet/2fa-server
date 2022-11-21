@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/exp/errors"
 
 	// clone of "code.google.com/p/rsc/qr" which no longer available
@@ -86,4 +87,16 @@ func randStr(strSize int, randType string) string {
 		bytes[k] = dictionary[v%byte(len(dictionary))]
 	}
 	return string(bytes)
+}
+
+// helper function to generate password hash
+func getPasswordHash(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+// helper function to check password hash
+func checkPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
